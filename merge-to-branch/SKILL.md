@@ -19,6 +19,15 @@ Success means:
 If the user asks only for an explanation, describe the workflow without changing
 the repository.
 
+## Handle Git Arguments Safely
+
+Treat every resolved branch, ref, ref range, remote, and worktree path as opaque
+data. Prefer a command runner that accepts an argument array and pass each value
+as a separate argument. If only a shell command string is available, shell-escape
+each complete value before substitution; never concatenate raw values into shell
+syntax. Quoted placeholders below mark argument boundaries but do not replace
+proper escaping of the resolved values.
+
 ## Workflow
 
 ### 1. Resolve the source and target
@@ -29,14 +38,14 @@ Require the user to provide `<target-branch>`. Run:
 git status --short --branch
 git branch --show-current
 git worktree list --porcelain
-git show-ref --verify --quiet refs/heads/<target-branch>
+git show-ref --verify --quiet "refs/heads/<target-branch>"
 ```
 
 If the source is detached, create a focused branch and record it as
 `<source-branch>`:
 
 ```bash
-git switch -c codex/<topic>
+git switch -c "codex/<topic>"
 ```
 
 Otherwise record the current branch as `<source-branch>`. Stop if the target does
@@ -50,17 +59,24 @@ worktree or the worktree is ambiguous.
 Require the target worktree to be clean:
 
 ```bash
-git -C <target-worktree> status --short --branch
+git -C "<target-worktree>" status --short --branch
 ```
 
 Do not alter or stash changes owned by another task.
 
-### 2. Prepare the source branch
+### 2. Require a clean source worktree
 
-Review the source diff, follow applicable `AGENTS.md` instructions, run relevant
-checks, and commit completed task changes. Do not automatically commit unrelated
-uncommitted changes. Require the source worktree to be clean before continuing;
-stop if that would require altering or stashing another task's changes.
+Do not create source commits as part of this workflow. Inspect the source
+worktree:
+
+```bash
+git status --short
+```
+
+If it reports staged, unstaged, or untracked changes, stop and report the paths.
+Do not stage, commit, stash, discard, or otherwise alter them. Continue only
+after the user explicitly requests any separate commit operation and the source
+worktree is clean.
 
 Treat the complete committed tree difference between `<target-branch>` and
 `<source-branch>` as the landing scope. Do not filter individual commits, files,
@@ -68,18 +84,20 @@ or hunks from that difference.
 
 ### 3. Refresh the target
 
-Check whether the target has a configured upstream:
+Because `<target-branch>` is checked out in `<target-worktree>`, resolve its
+configured upstream through the worktree-local `@{upstream}` shorthand:
 
 ```bash
-git -C <target-worktree> rev-parse --abbrev-ref <target-branch>@{upstream}
+git -C "<target-worktree>" rev-parse --abbrev-ref "@{upstream}"
 ```
 
-If it succeeds, record the result as `<target-upstream>`, fetch its remote branch,
-and fast-forward the local target:
+If it succeeds, record the result as `<target-upstream>`. With the target branch
+still checked out, fetch without a repository argument so Git uses that branch's
+configured remote, then fast-forward from the same upstream shorthand:
 
 ```bash
-git -C <target-worktree> fetch <remote> <remote-branch>
-git -C <target-worktree> merge --ff-only <target-upstream>
+git -C "<target-worktree>" fetch
+git -C "<target-worktree>" merge --ff-only "@{upstream}"
 ```
 
 Stop if the fetch or fast-forward fails. Do not continue with a stale
@@ -91,23 +109,23 @@ no upstream, use the local target and report that no remote refresh was possible
 Run from the source worktree:
 
 ```bash
-git merge-base --is-ancestor <target-branch> <source-branch>
+git merge-base --is-ancestor "<target-branch>" "<source-branch>"
 ```
 
 If it fails, merge the refreshed target into the source. Resolve conflicts only
 on the source branch, then rerun relevant checks:
 
 ```bash
-git merge <target-branch>
+git merge "<target-branch>"
 ```
 
 Inspect the complete landing difference:
 
 ```bash
-git log --oneline <target-branch>..<source-branch>
-git diff --stat <target-branch>...<source-branch>
-git diff --name-status <target-branch>...<source-branch>
-git diff --check <target-branch>...<source-branch>
+git log --oneline "<target-branch>..<source-branch>"
+git diff --stat "<target-branch>...<source-branch>"
+git diff --name-status "<target-branch>...<source-branch>"
+git diff --check "<target-branch>...<source-branch>"
 ```
 
 If there is no tree difference, stop without creating an empty commit.
@@ -117,7 +135,7 @@ If there is no tree difference, stop without creating an empty commit.
 Record the current target commit as `<target-before>`:
 
 ```bash
-git -C <target-worktree> rev-parse <target-branch>
+git -C "<target-worktree>" rev-parse "<target-branch>"
 ```
 
 Immediately before landing, repeat the upstream fetch and fast-forward when an
@@ -130,9 +148,9 @@ repeat this guard.
 Run from the target worktree:
 
 ```bash
-git -C <target-worktree> merge --squash <source-branch>
-git -C <target-worktree> diff --cached --stat
-git -C <target-worktree> diff --cached --check
+git -C "<target-worktree>" merge --squash "<source-branch>"
+git -C "<target-worktree>" diff --cached --stat
+git -C "<target-worktree>" diff --cached --check
 ```
 
 Confirm the staged change represents the complete reviewed tree difference and
@@ -140,7 +158,7 @@ run relevant checks. If nothing is staged, do not create an empty commit.
 Otherwise create one commit summarizing the landed changes:
 
 ```bash
-git -C <target-worktree> commit -m "<change summary>"
+git -C "<target-worktree>" commit -m "<change-summary>"
 ```
 
 ### 7. Verify the result
@@ -148,10 +166,10 @@ git -C <target-worktree> commit -m "<change summary>"
 Run:
 
 ```bash
-git -C <target-worktree> status --short --branch
-git -C <target-worktree> rev-list --count <target-before>..<target-branch>
-git -C <target-worktree> rev-list --merges <target-before>..<target-branch>
-git -C <target-worktree> diff --exit-code <target-branch> <source-branch>
+git -C "<target-worktree>" status --short --branch
+git -C "<target-worktree>" rev-list --count "<target-before>..<target-branch>"
+git -C "<target-worktree>" rev-list --merges "<target-before>..<target-branch>"
+git -C "<target-worktree>" diff --exit-code "<target-branch>" "<source-branch>"
 ```
 
 Require a clean target worktree, exactly one new commit, no new merge commit, and
