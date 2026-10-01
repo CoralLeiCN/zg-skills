@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "draft-pr",
+  "version": "0.1.0",
+  "description": "Draft evidence-backed pull request titles and descriptions after verifying the intended comparison.",
+  "author": {
+    "name": "coral",
+    "url": "https://github.com/CoralLeiCN"
+  },
+  "repository": "https://github.com/CoralLeiCN/zg-skills",
+  "license": "Apache-2.0",
+  "keywords": ["git", "pull-requests", "writing"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Draft PR",
+        "shortDescription": "Draft PR copy from verified repository evidence",
+        "longDescription": "Verify the intended source and target, inspect the pull request comparison, and draft a concise title and body grounded in repository evidence. This skill prepares copy without publishing a pull request.",
+        "developerName": "coral",
+        "category": "Developer Tools",
+        "defaultPrompt": [
+          "Use $draft-pr:draft-pr to verify the intended PR comparison and draft a reviewer-ready title and body from repository evidence."
+        ]
+      }
+    }
+  }
+}
