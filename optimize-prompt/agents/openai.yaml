@@ -1,4 +1,0 @@
-interface:
-  display_name: "Optimize Prompt"
-  short_description: "Optimize prompts and surface conflicts or drift"
-  default_prompt: "Use $optimize-prompt to improve this prompt for GPT-5.6 and report instruction, information, or growing-context issues."

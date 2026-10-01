@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "optimize-prompt",
+  "version": "0.1.0",
+  "description": "Optimize GPT-5.6 prompts while preserving intent and surfacing instruction, information, and context conflicts.",
+  "author": {
+    "name": "coral",
+    "url": "https://github.com/CoralLeiCN"
+  },
+  "repository": "https://github.com/CoralLeiCN/zg-skills",
+  "license": "Apache-2.0",
+  "keywords": ["prompts", "gpt-5.6", "writing"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Optimize Prompt",
+        "shortDescription": "Optimize prompts and surface conflicts or drift",
+        "longDescription": "Rewrite or review GPT-5.6 prompts while preserving their intended outcome. Return a ready-to-use prompt and a concise audit of conflicting instructions, missing information, duplication, and context drift.",
+        "developerName": "coral",
+        "category": "Productivity",
+        "defaultPrompt": [
+          "Use $optimize-prompt:optimize-prompt to improve this prompt for GPT-5.6 and report instruction, information, or growing-context issues."
+        ]
+      }
+    }
+  }
+}

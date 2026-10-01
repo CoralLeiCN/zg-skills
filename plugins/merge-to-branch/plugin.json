@@ -1,0 +1,27 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "merge-to-branch",
+  "version": "0.1.0",
+  "description": "Squash every committed change from the current task branch into an explicitly named local target branch.",
+  "author": {
+    "name": "coral",
+    "url": "https://github.com/CoralLeiCN"
+  },
+  "repository": "https://github.com/CoralLeiCN/zg-skills",
+  "license": "Apache-2.0",
+  "keywords": ["git", "merge", "squash"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Merge to Branch",
+        "shortDescription": "Squash current work into a chosen target branch",
+        "longDescription": "Land the complete committed tree difference as one squash commit in a user-specified local target branch. Refresh the target when it has an upstream and verify identical source and target trees after landing.",
+        "developerName": "coral",
+        "category": "Developer Tools",
+        "defaultPrompt": [
+          "Use $merge-to-branch:merge-to-branch to squash every committed change from my current branch into <target-branch> as one commit."
+        ]
+      }
+    }
+  }
+}
