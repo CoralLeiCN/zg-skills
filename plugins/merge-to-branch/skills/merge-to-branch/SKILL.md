@@ -30,7 +30,10 @@ proper escaping of the resolved values.
 
 ## Workflow
 
-### 1. Resolve the source and target
+Batch independent read-only commands into one tool call where possible. Reuse
+their results until a relevant mutation or concurrent change invalidates them.
+
+### 1. Resolve the branches and require clean worktrees
 
 Require the user to provide `<target-branch>`. Run:
 
@@ -40,6 +43,11 @@ git branch --show-current
 git worktree list --porcelain
 git show-ref --verify --quiet "refs/heads/<target-branch>"
 ```
+
+Use this source status result to require a clean worktree. If it reports staged,
+unstaged, or untracked changes, stop and report the paths. Do not stage, commit,
+stash, discard, or otherwise alter pre-existing changes. Continue only after
+any separately authorized work is complete and the source worktree is clean.
 
 If the source is detached, create a focused branch and record it as
 `<source-branch>`:
@@ -64,25 +72,11 @@ git -C "<target-worktree>" status --short --branch
 
 Do not alter or stash changes owned by another task.
 
-### 2. Require a clean source worktree
-
-Do not create source commits as part of this workflow. Inspect the source
-worktree:
-
-```bash
-git status --short
-```
-
-If it reports staged, unstaged, or untracked changes, stop and report the paths.
-Do not stage, commit, stash, discard, or otherwise alter them. Continue only
-after the user explicitly requests any separate commit operation and the source
-worktree is clean.
-
 Treat the complete committed tree difference between `<target-branch>` and
 `<source-branch>` as the landing scope. Do not filter individual commits, files,
 or hunks from that difference.
 
-### 3. Refresh the target
+### 2. Refresh and record the target
 
 Because `<target-branch>` is checked out in `<target-worktree>`, resolve its
 configured upstream through the worktree-local `@{upstream}` shorthand:
@@ -104,84 +98,127 @@ Stop if the fetch or fast-forward fails. Do not continue with a stale
 remote-tracking ref or reset the target to resolve divergence. If the target has
 no upstream, use the local target and report that no remote refresh was possible.
 
-### 4. Update and validate the source
+Immediately after refresh, record the target HEAD as `<target-before>`, before
+updating or validating the source:
+
+```bash
+git -C "<target-worktree>" rev-parse HEAD
+```
+
+### 3. Update and validate the source
 
 Run from the source worktree:
 
 ```bash
-git merge-base --is-ancestor "<target-branch>" "<source-branch>"
+git merge-base --is-ancestor "<target-before>" HEAD
 ```
 
-If it fails, merge the refreshed target into the source. Resolve conflicts only
-on the source branch, then rerun relevant checks:
+If the target is not an ancestor (exit status 1), merge that recorded commit into
+the source. Stop on other errors. Resolve conflicts only on the source branch:
 
 ```bash
-git merge "<target-branch>"
+git merge "<target-before>"
 ```
 
-Inspect the complete landing difference:
+Record the resulting HEAD as `<source-commit>` and its tree as `<source-tree>`.
+Use these immutable values for review and landing:
 
 ```bash
-git log --oneline "<target-branch>..<source-branch>"
-git diff --stat "<target-branch>...<source-branch>"
-git diff --name-status "<target-branch>...<source-branch>"
-git diff --check "<target-branch>...<source-branch>"
+git rev-parse HEAD "HEAD^{tree}"
+git log --oneline "<target-before>..<source-commit>"
+git diff --stat --summary "<target-before>" "<source-commit>"
+git diff --check "<target-before>" "<source-commit>"
 ```
 
 If there is no tree difference, stop without creating an empty commit.
 
-### 5. Guard the landing point
+Run the relevant repository checks once for the resulting source. Reuse known
+successful results from this task when the tested tree, check scope, and relevant
+environment, dependencies, and configuration are unchanged. Rerun affected checks
+after changed content or conflict resolution; do not reuse results whose inputs
+are unknown. Checks that depend on branch or commit metadata must also have
+matching inputs. Record what passed or was reused and its tested tree.
+Stop if required checks fail.
 
-Record the current target commit as `<target-before>`:
+### 4. Guard the landing point
 
-```bash
-git -C "<target-worktree>" rev-parse "<target-branch>"
-```
+Before refreshing, require the target worktree to remain clean and on
+`<target-branch>`. Keep the final upstream fetch and fast-forward from step 2 when
+an upstream exists; stop on failure.
 
-Immediately before landing, repeat the upstream fetch and fast-forward when an
-upstream exists, then confirm the target still equals `<target-before>`. If it
-moved, update and validate the source again, record the new `<target-before>`, and
-repeat this guard.
+After refresh and immediately before squashing, require both worktrees to remain
+clean and on their recorded branches, and the source HEAD to equal
+`<source-commit>`. Stop if the source changed unexpectedly; do not silently land
+a different snapshot. Compare the target HEAD with `<target-before>`.
+If it moved, replace `<target-before>` with the new target HEAD, repeat step 3,
+and run this guard again.
+Allow at most one such revalidation per invocation. If the target moves again,
+stop and report the moving target instead of continuing to loop. Revalidate the
+landing difference even when existing test results remain reusable.
 
-### 6. Squash into the target
+### 5. Squash the reviewed snapshot into the target
 
 Run from the target worktree:
 
 ```bash
-git -C "<target-worktree>" merge --squash "<source-branch>"
-git -C "<target-worktree>" diff --cached --stat
-git -C "<target-worktree>" diff --cached --check
+git -C "<target-worktree>" merge --squash "<source-commit>"
+git -C "<target-worktree>" write-tree
 ```
 
-Confirm the staged change represents the complete reviewed tree difference and
-run relevant checks. If nothing is staged, do not create an empty commit.
-Otherwise create one commit summarizing the landed changes:
+Require the index tree returned by `write-tree` to equal `<source-tree>`. This
+verifies the entire staged result matches the reviewed source without repeating
+the diff review or whitespace check. Stop on a squash failure, unexpected
+conflict, or tree mismatch; do not resolve conflicts on the target.
+
+Reuse the source check results under the same conditions as step 3. Run checks
+in the target worktree only when required by repository instructions or when
+their inputs differ there or cannot be confirmed equivalent. Keep required
+commit hooks enabled.
+
+Immediately before committing, require the target to remain on `<target-branch>`
+at `<target-before>`, with the same index tree and no unstaged or untracked
+changes. The source must still be clean, on `<source-branch>`, and at
+`<source-commit>`. Repeat the tree check after any target-side checks that could
+modify files. Stop on unexpected changes and leave them for inspection.
+
+If nothing is staged, do not create an empty commit. Otherwise create one commit
+summarizing the landed changes:
 
 ```bash
 git -C "<target-worktree>" commit -m "<change-summary>"
 ```
 
-### 7. Verify the result
+### 6. Verify the result
 
 Run:
 
 ```bash
 git -C "<target-worktree>" status --short --branch
-git -C "<target-worktree>" rev-list --count "<target-before>..<target-branch>"
-git -C "<target-worktree>" rev-list --merges "<target-before>..<target-branch>"
-git -C "<target-worktree>" diff --exit-code "<target-branch>" "<source-branch>"
+git -C "<target-worktree>" rev-list --parents -n 1 HEAD
+git -C "<target-worktree>" rev-parse "HEAD^{tree}"
 ```
 
-Require a clean target worktree, exactly one new commit, no new merge commit, and
-identical target and source file trees. Do not expect their commit IDs to match
-after a squash.
+Then, from the source worktree, run:
+
+```bash
+git status --short --branch
+git rev-parse HEAD
+```
+
+Require both worktrees to remain clean and on their recorded branches, with the
+source still at `<source-commit>`. The new target commit must have exactly one
+parent, `<target-before>`, and its tree must equal `<source-tree>`. Together these
+prove exactly one non-merge commit was added and the source and target have
+identical file trees. Do not expect their commit IDs to match after a squash.
 
 ## Safeguards
 
 - Do not check out the target in the source worktree.
 - Do not use destructive Git commands, force-push, or delete branches or worktrees.
 - Stop and report conflicts or product decisions that cannot be resolved safely.
+- On failed verification, report the inconsistency and any target commit already
+  created; do not claim success or automatically discard changes.
 - Do not push or perform cleanup unless the user asks.
 
 Report the source branch, target branch, new target commit, upstream refresh
-status, and checks run.
+status, and checks run or reused.

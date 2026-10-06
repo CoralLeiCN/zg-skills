@@ -4,11 +4,11 @@ coral's skills library, packaged as independently installable plugins for Codex.
 
 ## Plugins
 
-| Plugin | Skill | Purpose |
-| --- | --- | --- |
-| [Draft PR](plugins/draft-pr/plugin.json) | [`draft-pr`](plugins/draft-pr/skills/draft-pr/SKILL.md) | Draft evidence-backed pull request titles and descriptions. |
-| [Merge to Branch](plugins/merge-to-branch/plugin.json) | [`merge-to-branch`](plugins/merge-to-branch/skills/merge-to-branch/SKILL.md) | Squash every committed change from the current branch into an explicit target branch. |
-| [Optimize Prompt](plugins/optimize-prompt/plugin.json) | [`optimize-prompt`](plugins/optimize-prompt/skills/optimize-prompt/SKILL.md) | Optimize GPT-5.6 prompts and surface instruction or information conflicts. |
+| Plugin | Skill | Purpose | Documentation |
+| --- | --- | --- | --- |
+| [Draft PR](plugins/draft-pr/plugin.json) | [`draft-pr`](plugins/draft-pr/skills/draft-pr/SKILL.md) | Draft evidence-backed pull request titles and descriptions. | [Intent](plugins/draft-pr/intent.md), [Spec](plugins/draft-pr/spec.md) |
+| [Merge to Branch](plugins/merge-to-branch/plugin.json) | [`merge-to-branch`](plugins/merge-to-branch/skills/merge-to-branch/SKILL.md) | Squash every committed change from the current branch into an explicit target branch. | [Intent](plugins/merge-to-branch/intent.md), [Spec](plugins/merge-to-branch/spec.md) |
+| [Optimize Prompt](plugins/optimize-prompt/plugin.json) | [`optimize-prompt`](plugins/optimize-prompt/skills/optimize-prompt/SKILL.md) | Optimize GPT-5.6 prompts and surface instruction or information conflicts. | [Intent](plugins/optimize-prompt/intent.md), [Spec](plugins/optimize-prompt/spec.md) |
 
 Each plugin contains one skill and its Codex UI metadata. No bundled MCP server or connector is required.
 
@@ -46,18 +46,24 @@ plugins/
   draft-pr/
     plugin.json
     LICENSE
+    intent.md
+    spec.md
     skills/draft-pr/
       SKILL.md
       agents/openai.yaml
   merge-to-branch/
     plugin.json
     LICENSE
+    intent.md
+    spec.md
     skills/merge-to-branch/
       SKILL.md
       agents/openai.yaml
   optimize-prompt/
     plugin.json
     LICENSE
+    intent.md
+    spec.md
     skills/optimize-prompt/
       SKILL.md
       agents/openai.yaml
@@ -66,6 +72,8 @@ plugins/
 The original top-level skill directories now live under their plugin's `skills/` directory. Update any direct skill-install paths to the locations linked above.
 
 ## Maintain the plugins
+
+Each skill has its own `intent.md` for purpose, intended use, and design priorities, and `spec.md` for constraints, requirements, and limitations. Keep these documents at the plugin root, outside `skills/`, and update them when the skill's behavior or scope changes. `SKILL.md` contains the operational workflow and safeguards.
 
 Edit each skill in its plugin directory and bump that plugin's `version` in `plugin.json` when releasing changes. Keep the manifest's display information and default prompt aligned with `agents/openai.yaml`. Each plugin includes the repository's Apache 2.0 license so its folder can be distributed independently.
 
