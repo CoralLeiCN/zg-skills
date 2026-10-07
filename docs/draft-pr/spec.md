@@ -2,7 +2,7 @@
 
 This document records the constraints and limitations for the purpose described
 in [intent.md](intent.md). The operational instructions live in
-[SKILL.md](skills/draft-pr/SKILL.md).
+[SKILL.md](../../plugins/draft-pr/skills/draft-pr/SKILL.md).
 
 ## Operating constraints
 

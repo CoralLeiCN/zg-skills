@@ -2,7 +2,7 @@
 
 This document records the constraints and accepted limitations for the usage
 described in [intent.md](intent.md). The executable instructions live in
-[SKILL.md](skills/merge-to-branch/SKILL.md).
+[SKILL.md](../../plugins/merge-to-branch/skills/merge-to-branch/SKILL.md).
 
 ## Operating constraints
 

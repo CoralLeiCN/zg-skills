@@ -2,7 +2,7 @@
 
 This document records the constraints and limitations for the purpose described
 in [intent.md](intent.md). The operational instructions live in
-[SKILL.md](skills/optimize-prompt/SKILL.md).
+[SKILL.md](../../plugins/optimize-prompt/skills/optimize-prompt/SKILL.md).
 
 ## Operating constraints
 
